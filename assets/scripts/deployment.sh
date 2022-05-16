@@ -12,8 +12,8 @@ yum -y install mysql-community-client
 rm /tmp/mysql_pubkey.asc
 mount -t efs -o tls,iam ${FileSystemID}:/ /var/www/html
 echo "${FileSystemID}:/ /var/www/html efs _netdev,noresvport,tls,iam 0 0" >> /etc/fstab
-wget https://raw.githubusercontent.com/mdmoats/lamp-stack-cloudformation/assets/config/heartbeat.php -P /var/www/html
-wget https://raw.githubusercontent.com/mdmoats/lamp-stack-cloudformation/assets/config/wp-config.php -P /var/www/html
+wget https://raw.githubusercontent.com/mdmoats/lamp-stack-cloudformation/main/assets/config/heartbeat.php -P /var/www/html
+wget https://raw.githubusercontent.com/mdmoats/lamp-stack-cloudformation/main/assets/config/wp-config.php -P /var/www/html
 cd /var/www/html
 wget https://wordpress.org/latest.tar.gz
 tar -xzf latest.tar.gz
