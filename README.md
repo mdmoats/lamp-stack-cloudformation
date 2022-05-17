@@ -12,7 +12,7 @@ Execute the following command to deploy this template via the AWS CLI:
 ```
 aws cloudformation create-stack --stack-name <NAME> --template-body file://<FILENAME>.yaml --role-arn <IAM_ROLE> --capabilities CAPABILITY_NAMED_IAM
 ```
-Alternatively, you may deploy this template via the AWS Management Console as follows. Note that some parameters will be populated with default vaues while others require user input.
+Alternatively, you may deploy this template via the AWS Management Console as pictured below. Note that some parameters will be populated with default vaues while others require user input.
 
 ![Parameters 1](https://github.com/mdmoats/lamp-stack-cloudformation/blob/main/assets/images/stack1.png)
 ![Parameters 2](https://github.com/mdmoats/lamp-stack-cloudformation/blob/main/assets/images/stack2.png)
