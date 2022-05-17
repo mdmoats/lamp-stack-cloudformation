@@ -23,7 +23,7 @@ Several resources in this template have termination protection, detailed monitor
 ### Post Deployment Testing
 1. Once the CloudFormation stack is deployed, navigate to the Outputs tab in the CloudFormation console and launch the ApplicationLoadBalancerDNS URL.
 ![Outputs](https://github.com/mdmoats/lamp-stack-cloudformation/blob/main/assets/images/stack3.png)
-2. Select the desired language at the Wordpress prmopt.
+2. Select the desired language at the Wordpress prompt.
 ![Wordpress Language](https://github.com/mdmoats/lamp-stack-cloudformation/blob/main/assets/images/stack4.png)
 3. Enter the appropriate values in each field to configure your Wordpress site.
 ![Wordpress Site](https://github.com/mdmoats/lamp-stack-cloudformation/blob/main/assets/images/stack5.png)
