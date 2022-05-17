@@ -1,5 +1,5 @@
 # lamp-stack-cloudformation
-CloudFormation template that deploys the LAMP stack (specifically Wordpress) on Amazon EC2 and Aurora.
+CloudFormation template that deploys the LAMP stack to host Wordpress on Amazon EC2 and Aurora.
 
 ## Prerequsites
 This template assumes that you have already...
