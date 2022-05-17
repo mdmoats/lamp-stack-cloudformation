@@ -21,7 +21,7 @@ Alternatively, you may deploy this template via the AWS Management Console as pi
 Several resources in this template have termination protection, detailed monitoring, and automated backups disabled to reduce deployment costs. Additionally, some IAM policies contain wildcard permissions that should be restricted to specific resources prior to deployment in production. Examine the template in detail and make any desired configuration changes prior to deploying in your environment.
 
 ### Post Deployment Testing
-1. Once the CloudFormation stack is deployed, navigate to the Outputs tab in the CloudFormation console and click the ApplicationLoadBalancerDNS URL.
+1. Once the CloudFormation stack is deployed, navigate to the Outputs tab in the CloudFormation console and launch the ApplicationLoadBalancerDNS URL.
 ![Outputs](https://github.com/mdmoats/lamp-stack-cloudformation/blob/main/assets/images/stack3.png)
 2. Select the desired language at the Wordpress prmopt.
 ![Wordpress Language](https://github.com/mdmoats/lamp-stack-cloudformation/blob/main/assets/images/stack4.png)
