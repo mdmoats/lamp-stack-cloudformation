@@ -27,6 +27,6 @@ Several resources in this template have termination protection, detailed monitor
 ![Wordpress Language](https://github.com/mdmoats/lamp-stack-cloudformation/blob/main/assets/images/stack4.png)
 3. Enter the appropriate values in each field to configure your Wordpress site.
 ![Wordpress Site](https://github.com/mdmoats/lamp-stack-cloudformation/blob/main/assets/images/stack5.png)
-4. Navigate back to the CloudFormation console Outputs tab once more and select the ApplicationLoadBalancerDNS URL.
+4. Return to the CloudFormation console Outputs tab and select the ApplicationLoadBalancerDNS URL to refresh the page.
 ![Wordpress Site 2](https://github.com/mdmoats/lamp-stack-cloudformation/blob/main/assets/images/stack6.png)
 Your Wordpress site appears, indicating that the deployment was successful.
