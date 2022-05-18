@@ -1,0 +1,1116 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: This template deploys the LAMP stack on EC2 and Aurora.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label: 
+          default: "Basic Configuration"
+        Parameters:
+          - Prefix
+          - SecureSourceCIDR
+          - EmailAddress
+          - AcmCertificate
+      -
+        Label: 
+          default: "Network Configuration"
+        Parameters:
+          - VpcCIDR
+          - PublicSubnet1aCIDR
+          - PublicSubnet1bCIDR
+          - WebSubnet1aCIDR
+          - WebSubnet1bCIDR
+          - DataSubnet1aCIDR
+          - DataSubnet1bCIDR
+      -
+        Label: 
+          default: "EC2 Configuration"
+        Parameters:
+          - EC2InstanceType
+          - EC2ImageId
+          - EC2Keypair
+      -
+        Label: 
+          default: "RDS Configuration"
+        Parameters:
+          - DatabaseInstanceClass
+          - DatabaseName
+          - DatabaseUsername
+          - DatabasePassword
+    ParameterLabels:
+      Prefix:
+        default: Prefix
+      VpcCIDR:
+        default: VPC
+      PublicSubnet1aCIDR:
+        default: Public Subnet 1a
+      PublicSubnet1bCIDR:
+        default: Public Subnet 1b
+      WebSubnet1aCIDR:
+        default: Web Subnet 1a
+      WebSubnet1bCIDR:
+        default: Web Subnet 1b
+      DataSubnet1aCIDR:
+        default: Data Subnet 1a
+      DataSubnet1bCIDR:
+        default: Data Subnet 1b
+      SecureSourceCIDR:
+        default: SSH Source Location
+      EC2InstanceType:
+        default: EC2 Instance Type
+      EC2ImageId:
+        default: EC2 Image ID (AMI)
+      EC2Keypair:
+        default: Keypair Name
+      EmailAddress:
+        default: Administrator Email
+      AcmCertificate:
+        default: Certificate ARN
+      DatabaseInstanceClass:
+        default: RDS Instance Type
+      DatabaseName:
+        default: Database Name
+      DatabaseUsername:
+        default: Database Username
+      DatabasePassword:
+        default: Database Password
+
+Parameters:
+  Prefix:
+    Default: lamp-stack
+    Description: Please enter a unique prefix that describes this stack. The specified value will be appended to the beginning of all resource names.
+    Type: String
+
+  VpcCIDR:
+    Default: 10.0.0.0/16
+    Description: Please enter the desired IP range for this VPC in CIDR notation.
+    Type: String
+
+  PublicSubnet1aCIDR:
+    Default: 10.0.0.0/24
+    Description: Please enter the desired IP range for this subnet in CIDR notation.
+    Type: String
+
+  PublicSubnet1bCIDR:
+    Default: 10.0.1.0/24
+    Description: Please enter the desired IP range for this subnet in CIDR notation.
+    Type: String
+
+  WebSubnet1aCIDR:
+    Default: 10.0.2.0/24
+    Description: Please enter the desired IP range for this subnet in CIDR notation.
+    Type: String
+
+  WebSubnet1bCIDR:
+    Default: 10.0.3.0/24
+    Description: Please enter the desired IP range for this subnet in CIDR notation.
+    Type: String
+
+  DataSubnet1aCIDR:
+    Default: 10.0.4.0/24
+    Description: Please enter the desired IP range for this subnet in CIDR notation.
+    Type: String
+
+  DataSubnet1bCIDR:
+    Default: 10.0.5.0/24
+    Description: Please enter the desired IP range for this subnet in CIDR notation.
+    Type: String
+
+  SecureSourceCIDR:
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: Must be a valid IP range in CIDR notation - i.e. x.x.x.x/x
+    Default: 0.0.0.0/0
+    Description: Please enter the secure source IP range that will be used to access servers via SSH.
+    MaxLength: '18'
+    MinLength: '9'
+    Type: String
+
+  EC2InstanceType:
+    Default: t2.micro
+    Description: Please enter the desired instance type for EC2 workloads in this stack.
+    Type: String
+
+  EC2ImageId:
+    Description: Please enter the desired Amazon Machine Image (AMI) for EC2 workloads in this stack.
+    Type: String
+
+  EC2Keypair:
+    Description: Please enter the name of an existing keypair in the target region. Use this keypair to access EC2 instances deployed via this stack.
+    Type: String
+
+  EmailAddress:
+    Description: Please enter a valid email address. This email address will be subscribed to an Amazon SNS topic which will send notifications when auto scaling events occur.
+    Type: String
+
+  AcmCertificate:
+    Description: Please enter the ARN of an existing public TLS certificate that has been issued by AWS Certificate Manager in the target region.
+    Type: String
+
+  DatabaseInstanceClass:
+    Default: db.t3.small
+    Description: Please enter the desired instance type for the Amazon Aurora database in this stack.
+    Type: String
+
+  DatabaseName:
+    Default: mysqldb
+    Description: Please enter the desired name for the Amazon Aurora database in this stack.
+    Type: String
+
+  DatabaseUsername:
+    Default: admin
+    Description: Please enter the desired username for the Amazon Aurora database in this stack.
+    Type: String
+
+  DatabasePassword:
+    Default: Password1
+    Description: Please enter the desired password for the Amazon Aurora database in this stack.
+    Type: String
+    NoEcho: true
+
+Mappings: 
+  RegionMap:
+    us-east-1: 
+      "AMI": ""
+      "ELBAccountId": "127311923021"
+    us-east-2: 
+      "AMI": ""
+      "ELBAccountId": "033677994240"
+    us-west-1: 
+      "AMI": ""
+      "ELBAccountId": "027434742980"
+    us-west-2: 
+      "AMI": ""
+      "ELBAccountId": "797873946194"
+    af-south-1: 
+      "AMI": ""
+      "ELBAccountId": "098369216593"
+    ca-central-1: 
+      "AMI": ""
+      "ELBAccountId": "985666609251"
+    eu-central-1: 
+      "AMI": ""
+      "ELBAccountId": "054676820928"
+    eu-west-1: 
+      "AMI": ""
+      "ELBAccountId": "156460612806"
+    eu-west-2: 
+      "AMI": ""
+      "ELBAccountId": "652711504416"
+    eu-south-1: 
+      "AMI": ""
+      "ELBAccountId": "635631232127"
+    eu-west-3: 
+      "AMI": ""
+      "ELBAccountId": "009996457667"
+    eu-north-1: 
+      "AMI": ""
+      "ELBAccountId": "897822967062"
+    ap-east-1: 
+      "AMI": ""
+      "ELBAccountId": "754344448648"
+    ap-northeast-1: 
+      "AMI": ""
+      "ELBAccountId": "582318560864"
+    ap-northeast-2: 
+      "AMI": ""
+      "ELBAccountId": "600734575887"
+    ap-northeast-3: 
+      "AMI": ""
+      "ELBAccountId": "383597477331"
+    ap-southeast-1: 
+      "AMI": ""
+      "ELBAccountId": "114774131450"
+    ap-southeast-2: 
+      "AMI": ""
+      "ELBAccountId": "783225319266"
+    ap-southeast-3: 
+      "AMI": ""
+      "ELBAccountId": "589379963580"
+    ap-south-1: 
+      "AMI": ""
+      "ELBAccountId": "718504428378"
+    me-south-1: 
+      "AMI": ""
+      "ELBAccountId": "076674570225"
+    sa-east-1: 
+      "AMI": ""
+      "ELBAccountId": "507241528517"
+    us-gov-west-1: 
+      "AMI": ""
+      "ELBAccountId": "048591011584"
+    us-gov-east-1: 
+      "AMI": ""
+      "ELBAccountId": "190560391635"
+    cn-north-1: 
+      "AMI": ""
+      "ELBAccountId": "638102146993"
+    cn-northwest-1: 
+      "AMI": ""
+      "ELBAccountId": "037604701340"
+
+Resources:
+# Create VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: !Sub ${Prefix}-vpc
+
+# Create Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${Prefix}-igw
+
+# Attach Internet Gateway to VPC
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+# Create Public Subnet-1a
+  PublicSubnet1a:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs '']
+      CidrBlock: !Ref PublicSubnet1aCIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${Prefix}-public-1a
+      VpcId: !Ref VPC
+
+# Create Public Subnet-1b
+  PublicSubnet1b:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 1, !GetAZs '']
+      CidrBlock: !Ref PublicSubnet1bCIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${Prefix}-public-1b
+      VpcId: !Ref VPC
+
+# Create Public Route Table
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${Prefix}-public-route-table
+      VpcId: !Ref VPC
+
+# Add Default Route to Public Route Table
+  DefaultRoutePublic:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref PublicRouteTable
+
+# Associate Public Subnet-1a with Public Route Table
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1a
+
+# Associate Public Subnet-1b with Public Route Table
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1b
+
+# Create Web Subnet-1a
+  WebSubnet1a:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs '']
+      CidrBlock: !Ref WebSubnet1aCIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${Prefix}-web-1a
+      VpcId: !Ref VPC
+
+# Create Web Subnet-1b
+  WebSubnet1b:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 1, !GetAZs '']
+      CidrBlock: !Ref WebSubnet1bCIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${Prefix}-web-1b
+      VpcId: !Ref VPC
+
+# Create Data Subnet-1a
+  DataSubnet1a:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs '']
+      CidrBlock: !Ref DataSubnet1aCIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${Prefix}-data-1a
+      VpcId: !Ref VPC
+
+# Create Data Subnet-1b
+  DataSubnet1b:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 1, !GetAZs '']
+      CidrBlock: !Ref DataSubnet1bCIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${Prefix}-data-1b
+      VpcId: !Ref VPC
+
+# Allocate Elastic IP for NAT Gateway
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+        Domain: vpc
+        Tags:
+          - Key: Name
+            Value: !Sub ${Prefix}-nat-gw-eip
+
+# Create NAT Gateway
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+        AllocationId: !GetAtt ElasticIP.AllocationId
+        SubnetId: !Ref PublicSubnet1a
+        Tags:
+        - Key: Name
+          Value: !Sub ${Prefix}-nat-gw
+
+# Create Private Route Table
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${Prefix}-private-route-table
+      VpcId: !Ref VPC
+
+ # Add Default Route to Private Route Table
+  DefaultRoutePrivate:
+    Type: AWS::EC2::Route
+    Properties:
+        DestinationCidrBlock: 0.0.0.0/0
+        NatGatewayId: !Ref NatGateway
+        RouteTableId: !Ref PrivateRouteTable
+
+# Associate Web Subnet-1a with Private Route Table
+  WebSubnet1aRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref WebSubnet1a
+
+# Associate Web Subnet-1b with Private Route Table
+  WebSubnet1bRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref WebSubnet1b
+
+# Associate Data Subnet-1a with Private Route Table
+  DataSubnet1aRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref DataSubnet1a
+
+# Associate Data Subnet-1b with Private Route Table
+  DataSubnet1bRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref DataSubnet1b
+
+  # Create KMS key for encrypting S3 buckets and storage volumes
+  KMSMasterKey:
+    Type: AWS::KMS::Key
+    Properties: 
+      Description: Key for encrypting storage resources
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Id: custom-key-policy
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: "*" # For expiramental use only, replace with desired principal before deploying to production
+            Action: kms:*
+            Resource: "*"
+      MultiRegion: true
+      PendingWindowInDays: 7
+
+  # Create alias for the KMS Master key
+  KMSMasterKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties: 
+      AliasName: !Sub alias/${Prefix}-master-key
+      TargetKeyId: !Ref KMSMasterKey
+
+  # Create S3 bucket with randomly generated name
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties: 
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: AES256
+      AccessControl: BucketOwnerFullControl
+      PublicAccessBlockConfiguration: 
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+# Create S3 bucket policy to write access logs from ALB
+  S3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref S3Bucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Id: custom-s3-bucket-policy
+        Statement:
+          - Sid: Allow load balancer account to write ALB access logs to S3 bucket
+            Action: s3:PutObject
+            Effect: Allow
+            Resource: !Join ["/", [ !GetAtt S3Bucket.Arn, "alb-access-logs", "*" ] ]
+            Principal:
+              AWS: !Join [":", [ "arn:aws:iam:", !FindInMap [RegionMap, !Ref "AWS::Region", ELBAccountId],"root" ] ]
+              
+# Create Security Group for Application Load Balancer 
+  ALBSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Allow inbound HTTP/HTTPS from anywhere
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${Prefix}-alb-sg
+      VpcId: !Ref VPC
+
+# Create Security Group for Bastion Host aka Jump Box
+  BastionSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Allow inbound SSH from secure location
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref SecureSourceCIDR
+      Tags:
+        - Key: Name
+          Value: !Sub ${Prefix}-bastion-sg
+      VpcId: !Ref VPC
+
+# Create Security Group for Web Servers
+  WebServerSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Allow HTTP/HTTPS from load balancers 
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref BastionSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${Prefix}-web-server-sg
+      VpcId: !Ref VPC
+
+# Create Security Group for Databases
+  DatabaseSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Allow database connections from web servers
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref WebServerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${Prefix}-database-sg
+      VpcId: !Ref VPC
+
+# Create Security Group for Elastic File System
+  EFSMountTargetSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Allow NFS connections from web servers
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 2049
+          ToPort: 2049
+          SourceSecurityGroupId: !Ref WebServerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${Prefix}-efs-sg
+      VpcId: !Ref VPC
+
+# Create Elastic File System
+  ElasticFileSystem:
+    Type: AWS::EFS::FileSystem
+    Properties: 
+      PerformanceMode: generalPurpose
+      Encrypted: true
+      KmsKeyId: !Ref KMSMasterKey
+      FileSystemPolicy:
+        Version: "2012-10-17"
+        Id: custom-efs-resource-policy
+        Statement:
+          - Sid: Grant role full access to Elastic File System
+            Effect: Allow
+            Principal:
+              AWS: !GetAtt EC2CoreIamRole.Arn
+            Action: [ elasticfilesystem:ClientMount, elasticfilesystem:ClientWrite, elasticfilesystem:ClientRootAccess  ]
+            Condition:
+              Bool:
+                elasticfilesystem:AccessedViaMountTarget: true
+          - Sid: Enforce in-transit encryption for all clients
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Action: "*"
+            Condition:
+              Bool: 
+                aws:SecureTransport: false
+      BackupPolicy:
+        Status: ENABLED
+      LifecyclePolicies: 
+        - TransitionToIA: AFTER_60_DAYS
+      FileSystemTags: 
+        - Key: Name
+          Value: !Sub ${Prefix}-elastic-file-system
+
+# Create EFS Mount Target in WebSubnet1a
+  EFSMountTarget1a: 
+    Type: AWS::EFS::MountTarget
+    Properties: 
+      FileSystemId: !Ref ElasticFileSystem
+      SubnetId: !Ref WebSubnet1a
+      SecurityGroups:
+        - !Ref EFSMountTargetSecurityGroup
+
+# Create EFS Mount Target in WebSubnet1b
+  EFSMountTarget1b: 
+    Type: AWS::EFS::MountTarget
+    Properties: 
+      FileSystemId: !Ref ElasticFileSystem
+      SubnetId: !Ref WebSubnet1b
+      SecurityGroups:
+        - !Ref EFSMountTargetSecurityGroup
+
+# Create EC2Core IAM role and Instance Profile
+  EC2CoreIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: EC2Core
+      Description: Allow EC2 to be managed by SSM
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: ProgrammaticAccessToS3Bucket
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !GetAtt S3Bucket.Arn
+              - Effect: Allow
+                Action: [ s3:PutObject, s3:GetObject, s3:DeleteObject ]
+                Resource: !Join ["/", [ !GetAtt S3Bucket.Arn,"*" ] ]
+        - PolicyName: ProgrammaticAccessToSSMParameters
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ssm:DescribeParameters
+                Resource: "*"
+              - Effect: Allow
+                Action: ssm:GetParameters
+                Resource: !Join [":", [ "arn:aws:ssm", !Ref AWS::Region, !Ref AWS::AccountId, "parameter/*" ] ]
+  EC2CoreInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: EC2Core
+      Roles:
+        - !Ref EC2CoreIamRole
+
+# Create Bastion host
+  Bastion:
+    Type: AWS::EC2::Instance
+    Properties: 
+      SubnetId: !Ref PublicSubnet1a
+      ImageId: !Ref EC2ImageId
+      InstanceType: !Ref EC2InstanceType
+      IamInstanceProfile: !Ref EC2CoreInstanceProfile
+      KeyName: !Ref EC2Keypair
+      BlockDeviceMappings: 
+        - DeviceName: "/dev/xvda"
+          Ebs: 
+            VolumeSize: "8"
+            VolumeType: gp2
+            Encrypted: true
+            KmsKeyId: !Ref KMSMasterKey
+            DeleteOnTermination: true
+      SecurityGroupIds: 
+        - !Ref BastionSecurityGroup
+      Tags: 
+        - Key: Name
+          Value: !Sub ${Prefix}-bastion
+      UserData:
+        Fn::Base64: 
+          !Sub |
+            #!/bin/bash -xe
+            yum -y update
+
+# Create application deployment node
+  DeploymentNode:
+    Type: AWS::EC2::Instance
+    Properties: 
+      SubnetId: !Ref WebSubnet1a
+      ImageId: !Ref EC2ImageId
+      InstanceType: !Ref EC2InstanceType
+      IamInstanceProfile: !Ref EC2CoreInstanceProfile
+      KeyName: !Ref EC2Keypair
+      BlockDeviceMappings: 
+        - DeviceName: "/dev/xvda"
+          Ebs: 
+            VolumeSize: "8"
+            VolumeType: gp2
+            Encrypted: true
+            KmsKeyId: !Ref KMSMasterKey
+            DeleteOnTermination: true
+      SecurityGroupIds: 
+        - !Ref WebServerSecurityGroup
+      Tags: 
+        - Key: Name
+          Value: !Sub ${Prefix}-deployment-node
+      UserData:
+        Fn::Base64:
+          Fn::Sub:
+            - |
+              #!/bin/bash -xe
+              yum -y update
+              yum -y install amazon-efs-utils httpd
+              amazon-linux-extras install -y php7.4
+              systemctl start httpd
+              systemctl enable httpd
+              wget https://raw.githubusercontent.com/mdmoats/lamp-stack-cloudformation/main/assets/mysql_pubkey.asc -P /tmp
+              rpm --import /tmp/mysql_pubkey.asc
+              rpm -Uvh https://dev.mysql.com/get/mysql57-community-release-el7-11.noarch.rpm
+              yum -y install mysql-community-client
+              rm /tmp/mysql_pubkey.asc
+              mount -t efs -o tls,iam ${FileSystemID}:/ /var/www/html
+              echo "${FileSystemID}:/ /var/www/html efs _netdev,noresvport,tls,iam 0 0" >> /etc/fstab
+              wget https://raw.githubusercontent.com/mdmoats/lamp-stack-cloudformation/main/assets/config/heartbeat.php -P /var/www/html
+              wget https://raw.githubusercontent.com/mdmoats/lamp-stack-cloudformation/main/assets/config/wp-config.php -P /var/www/html
+              sed -i "s/database_name_here/${DatabaseName}/g" /var/www/html/wp-config.php
+              sed -i "s/username_here/${DatabaseUsername}/g" /var/www/html/wp-config.php
+              sed -i "s/password_here/${DatabasePassword}/g" /var/www/html/wp-config.php
+              sed -i "s/localhost/${DatabaseHostname}/g" /var/www/html/wp-config.php
+              cd /var/www/html
+              wget https://wordpress.org/latest.tar.gz
+              tar -xzf latest.tar.gz
+              cp -r wordpress/* /var/www/html/
+              rm -rf latest.tar.gz wordpress
+              chmod -R 755 /var/www/html/*
+              chown -R apache:apache /var/www/html/*
+            - FileSystemID: !GetAtt ElasticFileSystem.FileSystemId
+              DatabaseName: !Ref DatabaseName
+              DatabaseUsername: !Ref DatabaseUsername
+              DatabasePassword: !Ref DatabasePassword
+              DatabaseHostname: !GetAtt AuroraDatabaseCluster.Endpoint.Address
+      DependsOn: !Ref AuroraDatabasePrimary
+
+# Create Application Load Balancer
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${Prefix}-alb
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Subnets: 
+        - !Ref PublicSubnet1a
+        - !Ref PublicSubnet1b
+      LoadBalancerAttributes: 
+        - Key: access_logs.s3.enabled
+          Value: true
+        - Key: access_logs.s3.bucket
+          Value: !Ref S3Bucket
+        - Key: access_logs.s3.prefix
+          Value: alb-access-logs
+        - Key: deletion_protection.enabled
+          Value: false
+
+# Create Listener on Port 80
+  ALBListenerNoSslCertificate:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      DefaultActions:
+        - RedirectConfig:
+            Host: '#{host}'
+            Path: '/#{path}'
+            Port: '443'
+            Protocol: HTTPS
+            StatusCode: HTTP_301
+          Type: redirect
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+# Create Listener on Port 443
+  ALBListenerSslCertificate:
+    Type : AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      Certificates:
+        - CertificateArn: !Ref AcmCertificate
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref WebServerTargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 443
+      Protocol: HTTPS
+
+# Create Target Group
+  WebServerTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /heartbeat.php
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      Matcher:
+        HttpCode: 200,302
+      Name: WebServers
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 5
+      VpcId: !Ref VPC
+
+# Create Web Server Launch Template
+  WebServerLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties: 
+      LaunchTemplateName: !Sub ${Prefix}-web-server-launch-template
+      LaunchTemplateData:
+        ImageId: !Ref EC2ImageId
+        InstanceType: !Ref EC2InstanceType
+        IamInstanceProfile:
+          Name: !Ref EC2CoreInstanceProfile
+        Monitoring: 
+          Enabled: true
+        KeyName: !Ref EC2Keypair
+        BlockDeviceMappings: 
+          - DeviceName: "/dev/xvda"
+            Ebs: 
+              VolumeSize: "8"
+              VolumeType: gp2
+              Encrypted: true
+              KmsKeyId: !Ref KMSMasterKey
+              DeleteOnTermination: true
+        SecurityGroupIds: 
+          - !Ref WebServerSecurityGroup
+        UserData:
+          Fn::Base64:
+            Fn::Sub:
+              - |
+                #!/bin/bash -xe
+                yum -y update
+                yum -y install amazon-efs-utils httpd
+                amazon-linux-extras install -y php7.4
+                systemctl start httpd
+                systemctl enable httpd
+                wget https://raw.githubusercontent.com/mdmoats/lamp-stack-cloudformation/main/assets/mysql_pubkey.asc -P /tmp
+                rpm --import /tmp/mysql_pubkey.asc
+                rpm -Uvh https://dev.mysql.com/get/mysql57-community-release-el7-11.noarch.rpm
+                yum -y install mysql-community-client
+                rm /tmp/mysql_pubkey.asc
+                mount -t efs -o tls,iam ${FileSystemID}:/ /var/www/html
+                echo "${FileSystemID}:/ /var/www/html efs _netdev,noresvport,tls,iam 0 0" >> /etc/fstab
+              - FileSystemID: !GetAtt ElasticFileSystem.FileSystemId
+
+# Create SNS Topic for Auto Scaling email notifications
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties: 
+      TopicName: !Sub ${Prefix}-asg-topic ##################################################################################################
+      DisplayName: !Sub ${Prefix}-asg
+      Subscription: 
+        - Endpoint: !Ref EmailAddress
+          Protocol: email
+
+# Create Web Server Auto Scaling Group
+  WebServerAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Sub ${Prefix}-web-server-asg
+      VPCZoneIdentifier: 
+        - !Ref WebSubnet1a
+        - !Ref WebSubnet1b
+      LaunchTemplate:
+        LaunchTemplateId: !Ref WebServerLaunchTemplate
+        Version: !GetAtt WebServerLaunchTemplate.LatestVersionNumber
+      MinSize: 2
+      MaxSize: 4
+      DesiredCapacity: 2
+      VPCZoneIdentifier:   
+        - !Ref WebSubnet1a
+        - !Ref WebSubnet1b
+      TargetGroupARNs:
+        - !Ref WebServerTargetGroup
+      NotificationConfiguration:
+        TopicARN: !Ref NotificationTopic
+        NotificationTypes:
+          - "autoscaling:EC2_INSTANCE_LAUNCH"
+          - "autoscaling:EC2_INSTANCE_LAUNCH_ERROR"
+          - "autoscaling:EC2_INSTANCE_TERMINATE"
+          - "autoscaling:EC2_INSTANCE_TERMINATE_ERROR"
+      MetricsCollection: 
+        - Granularity: "1Minute"
+          Metrics: 
+            - "GroupMinSize"
+            - "GroupMaxSize"
+      Tags:
+        - Key: Name
+          Value: !Sub ${Prefix}-web-asg
+          PropagateAtLaunch: "true"
+
+# Create Web Server policy for scaling up
+  WebServerScaleUpPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties: 
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref WebServerAutoScalingGroup
+      Cooldown: 60
+      ScalingAdjustment: 1
+
+# Create Web Server policy for scaling down
+  WebServerScaleDownPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties: 
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref WebServerAutoScalingGroup
+      Cooldown: 60
+      ScalingAdjustment: -1
+
+# Create CloudWatch alarm for high CPU on web servers
+  WebServerCPUAlarmHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Scale up if CPU > 90% for 10 minutes
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 90
+      AlarmActions:
+        - !Ref WebServerScaleUpPolicy
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref WebServerAutoScalingGroup
+      ComparisonOperator: GreaterThanThreshold
+
+# Create CloudWatch alarm for low CPU on web servers
+  WebServerCPUAlarmLow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Scale down if CPU < 70% for 10 minutes
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 70
+      AlarmActions:
+        - !Ref WebServerScaleDownPolicy
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref WebServerAutoScalingGroup
+      ComparisonOperator: LessThanThreshold
+
+# Create database subnet group
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties: 
+      DBSubnetGroupName: !Sub ${Prefix}-db-subnet-group
+      DBSubnetGroupDescription: Subnet group for Amazon Aurora cluster
+      SubnetIds: 
+        - !Ref DataSubnet1a
+        - !Ref DataSubnet1b
+
+# Create Amazon Aurora database cluster
+  AuroraDatabaseCluster:
+    Type: AWS::RDS::DBCluster
+    Properties: 
+      # AssociatedRoles: 
+      #   - DBClusterRole
+      AvailabilityZones:
+        - !Select [ 0, !GetAZs '']
+        - !Select [ 1, !GetAZs ''] 
+      BackupRetentionPeriod: 1
+      CopyTagsToSnapshot: true
+      DatabaseName: !Ref DatabaseName
+      DBClusterIdentifier: !Sub ${Prefix}-aurora-database-cluster
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      DeletionProtection: false
+      EnableCloudwatchLogsExports: [ audit, error, general, slowquery ]
+      #  - String
+      EnableHttpEndpoint: false 
+      EnableIAMDatabaseAuthentication: false
+      Engine: aurora-mysql
+      EngineMode: provisioned
+      EngineVersion: 5.7.mysql_aurora.2.10.2 # aws rds describe-db-engine-versions --engine aurora-mysql --query "DBEngineVersions[].EngineVersion"
+      # GlobalClusterIdentifier: String # Specify if using Aurora global
+      StorageEncrypted: true
+      KmsKeyId: !Ref KMSMasterKey
+      MasterUsername: !Ref DatabaseUsername
+      MasterUserPassword: !Ref DatabasePassword
+      Port: 3306
+      PreferredBackupWindow: 04:00-05:00
+      PreferredMaintenanceWindow: Sat:06:00-Sat:07:00
+      # ReplicationSourceIdentifier: String
+      # SourceRegion: String
+      VpcSecurityGroupIds: 
+        - !Ref DatabaseSecurityGroup
+
+# Create Amazon Aurora primary database 
+  AuroraDatabasePrimary:
+    Type: AWS::RDS::DBInstance
+    Properties: 
+      DBInstanceIdentifier: !Sub ${Prefix}-aurora-primary
+      DBClusterIdentifier: !Ref AuroraDatabaseCluster
+      Engine: aurora-mysql
+      DBInstanceClass: !Ref DatabaseInstanceClass
+      AllowMajorVersionUpgrade: true
+      AvailabilityZone: !Select [ 0, !GetAZs '']
+      PubliclyAccessible: false
+      # CACertificateIdentifier: String
+      EnablePerformanceInsights: false
+      LicenseModel: general-public-license
+      PreferredMaintenanceWindow: Sat:06:00-Sat:07:00
+      PromotionTier: 1
+
+# Create Amazon Aurora read replica
+  AuroraDatabaseReadReplica:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Sub ${Prefix}-aurora-read-replica-1
+      DBClusterIdentifier: !Ref AuroraDatabaseCluster
+      Engine: aurora-mysql
+      DBInstanceClass: !Ref DatabaseInstanceClass
+      AllowMajorVersionUpgrade: true
+      AvailabilityZone: !Select [ 1, !GetAZs '']
+      PubliclyAccessible: false
+      # CACertificateIdentifier: String
+      EnablePerformanceInsights: false
+      LicenseModel: general-public-license
+      PreferredMaintenanceWindow: Sat:06:00-Sat:07:00
+      PromotionTier: 2
+
+# Store Aurora primary database endpoint as a parameter in SSM
+  AuroraDatabaseEndpoint:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: AuroraDatabaseEndpoint
+      Type: String
+      Value: !GetAtt AuroraDatabaseCluster.Endpoint.Address
+      Description: Primary database endpoint for Aurora MySQL instance
+
+Outputs:
+  VPC:
+    Description: VPC identifier
+    Export:
+      Name: !Sub ${AWS::StackName}-vpc
+    Value: !Ref VPC
+  
+  S3Bucket:
+    Description: Name randomly generated by S3
+    Export:
+      Name: s3-bucket
+    Value: !Ref S3Bucket
+
+  ElasticFileSystemID:
+    Description: EFS file system identifier
+    Export:
+      Name: file-system-id
+    Value: !GetAtt ElasticFileSystem.FileSystemId
+
+  BastionPublicIP:
+    Description: Public IP address of the Bastion host
+    Export:
+      Name: bastion-public-ip
+    Value: !GetAtt Bastion.PublicIp
+
+  DeploymentNodeIP:
+    Description: Private IP address of the deployment node
+    Export:
+      Name: deployment-node-private-ip
+    Value: !GetAtt DeploymentNode.PrivateIp
+
+  ApplicationLoadBalancerDNS:
+    Description: Public DNS name for the application load balancer
+    Export:
+      Name: alb-dns-name
+    Value: !GetAtt ApplicationLoadBalancer.DNSName
+
+  AuroraClusterEndpoint:
+    Description: Primary database endpoint
+    Export:
+      Name: rds-primary-endpoint
+    Value: !GetAtt AuroraDatabaseCluster.Endpoint.Address
+
+# aws cloudformation create-stack --stack-name test --template-body file://lamp_stack_2003.yaml --role-arn arn:aws:iam::338533562003:role/Admin --capabilities CAPABILITY_NAMED_IAM
